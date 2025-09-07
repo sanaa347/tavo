@@ -1,0 +1,267 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Planner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      display: flex;
+      background: #f4f6fa;
+    }
+    .sidebar {
+      width: 200px;
+      background: #2c3e50;
+      color: #fff;
+      height: 100vh;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+    .sidebar h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+    }
+    .sidebar button {
+      width: 100%;
+      margin: 5px 0;
+      padding: 10px;
+      border: none;
+      cursor: pointer;
+      background: #34495e;
+      color: white;
+      border-radius: 6px;
+    }
+    .sidebar button:hover {
+      background: #1abc9c;
+    }
+    .main {
+      flex: 1;
+      padding: 20px;
+    }
+    .tab {
+      display: none;
+    }
+    .active {
+      display: block;
+    }
+    .task-input {
+      margin-bottom: 10px;
+    }
+    input, select {
+      padding: 6px;
+      margin-right: 6px;
+    }
+    .task-list {
+      margin-top: 10px;
+    }
+    .task-item {
+      padding: 6px;
+      background: #ecf0f1;
+      border-radius: 4px;
+      margin: 4px 0;
+    }
+    canvas {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Study Planner</h2>
+    <button onclick="openTab('dashboard')">Dashboard</button>
+    <button onclick="openTab('tasks')">Tasks</button>
+    <button onclick="openTab('charts')">Charts</button>
+    <button onclick="openTab('productivity')">Productivity</button>
+    <button onclick="openTab('sleep')">Sleep & Mood</button>
+  </div>
+
+  <div class="main">
+    <!-- Dashboard -->
+    <div id="dashboard" class="tab active">
+      <h1>Dashboard</h1>
+      <p>Welcome! Track your weekly progress here.</p>
+      <label for="weekSelect">Current Week:</label>
+      <select id="weekSelect" onchange="setWeek()"></select>
+      <p id="weekStatus"></p>
+    </div>
+
+    <!-- Tasks -->
+    <div id="tasks" class="tab">
+      <h1>Tasks</h1>
+      <div class="task-input">
+        <input type="text" id="taskInput" placeholder="Enter task">
+        <select id="classSelect">
+          <option value="Korean">Korean</option>
+          <option value="TOPIK">TOPIK Prep</option>
+          <option value="Math">Math</option>
+          <option value="Business Communication">Business Communication</option>
+          <option value="Business Legal">Business Legal</option>
+          <option value="Accounting">Accounting</option>
+          <option value="Management">Management</option>
+        </select>
+        <button onclick="addTask()">Add Task</button>
+      </div>
+      <div class="task-list" id="taskList"></div>
+    </div>
+
+    <!-- Charts -->
+    <div id="charts" class="tab">
+      <h1>Performance Radar</h1>
+      <canvas id="radarChart" width="400" height="400"></canvas>
+    </div>
+
+    <!-- Productivity -->
+    <div id="productivity" class="tab">
+      <h1>Productivity Tracker</h1>
+      <label>Rate Productivity Today:</label>
+      <select id="productivityInput">
+        <option value="5">Excellent</option>
+        <option value="4">Good</option>
+        <option value="3">Okay</option>
+        <option value="2">Bad</option>
+        <option value="1">Very Bad</option>
+      </select>
+      <button onclick="saveProductivity()">Save</button>
+      <div id="productivityLog"></div>
+    </div>
+
+    <!-- Sleep & Mood -->
+    <div id="sleep" class="tab">
+      <h1>Sleep & Mood</h1>
+      <label>Hours Slept:</label>
+      <input type="number" id="sleepInput" min="0" max="24">
+      <label>Mood:</label>
+      <select id="moodInput">
+        <option value="Happy">Happy</option>
+        <option value="Neutral">Neutral</option>
+        <option value="Tired">Tired</option>
+        <option value="Sad">Sad</option>
+      </select>
+      <button onclick="saveSleep()">Save</button>
+      <div id="sleepLog"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Init weeks
+    const weekSelect = document.getElementById("weekSelect");
+    for (let i = 1; i <= 17; i++) {
+      let opt = document.createElement("option");
+      opt.value = i;
+      opt.text = i === 17 ? "Final Exam Week" : "Week " + i;
+      weekSelect.appendChild(opt);
+    }
+    weekSelect.value = localStorage.getItem("currentWeek") || 2;
+    setWeek();
+
+    function setWeek() {
+      const w = weekSelect.value;
+      localStorage.setItem("currentWeek", w);
+      document.getElementById("weekStatus").innerText = 
+        "You are in " + (w == 17 ? "Final Exam Week" : "Week " + w);
+    }
+
+    // Tabs
+    function openTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove("active"));
+      document.getElementById(tabName).classList.add("active");
+    }
+
+    // Tasks
+    function addTask() {
+      const taskInput = document.getElementById("taskInput");
+      const classSelect = document.getElementById("classSelect");
+      if (!taskInput.value) return;
+      let tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+      tasks.push({text: taskInput.value, subject: classSelect.value, week: weekSelect.value});
+      localStorage.setItem("tasks", JSON.stringify(tasks));
+      taskInput.value = "";
+      renderTasks();
+    }
+
+    function renderTasks() {
+      const tasks = JSON.parse(localStorage.getItem("tasks")) || [];
+      const list = document.getElementById("taskList");
+      list.innerHTML = "";
+      tasks.filter(t => t.week == weekSelect.value).forEach((t, i) => {
+        let div = document.createElement("div");
+        div.className = "task-item";
+        div.innerText = `[${t.subject}] ${t.text}`;
+        list.appendChild(div);
+      });
+    }
+    renderTasks();
+
+    // Productivity
+    function saveProductivity() {
+      const val = document.getElementById("productivityInput").value;
+      let log = JSON.parse(localStorage.getItem("productivity")) || [];
+      log.push({week: weekSelect.value, value: val, date: new Date().toLocaleDateString()});
+      localStorage.setItem("productivity", JSON.stringify(log));
+      renderProductivity();
+    }
+
+    function renderProductivity() {
+      let log = JSON.parse(localStorage.getItem("productivity")) || [];
+      const div = document.getElementById("productivityLog");
+      div.innerHTML = "<h3>History:</h3>";
+      log.filter(e => e.week == weekSelect.value).forEach(e => {
+        div.innerHTML += `<p>${e.date}: Rated ${e.value}</p>`;
+      });
+    }
+    renderProductivity();
+
+    // Sleep & Mood
+    function saveSleep() {
+      const sleep = document.getElementById("sleepInput").value;
+      const mood = document.getElementById("moodInput").value;
+      let log = JSON.parse(localStorage.getItem("sleep")) || [];
+      log.push({week: weekSelect.value, sleep, mood, date: new Date().toLocaleDateString()});
+      localStorage.setItem("sleep", JSON.stringify(log));
+      renderSleep();
+    }
+
+    function renderSleep() {
+      let log = JSON.parse(localStorage.getItem("sleep")) || [];
+      const div = document.getElementById("sleepLog");
+      div.innerHTML = "<h3>History:</h3>";
+      log.filter(e => e.week == weekSelect.value).forEach(e => {
+        div.innerHTML += `<p>${e.date}: Slept ${e.sleep} hrs - Mood: ${e.mood}</p>`;
+      });
+    }
+    renderSleep();
+
+    // Radar Chart
+    const ctx = document.getElementById('radarChart').getContext('2d');
+    const radarChart = new Chart(ctx, {
+      type: 'radar',
+      data: {
+        labels: ["Assignments", "Homework", "Business", "Communication", "Management"],
+        datasets: [{
+          label: "Performance",
+          data: [3, 4, 2, 5, 3],
+          backgroundColor: "rgba(26, 188, 156, 0.2)",
+          borderColor: "#1abc9c"
+        }]
+      },
+      options: {
+        scales: {
+          r: {
+            beginAtZero: true,
+            min: 0,
+            max: 5,
+            ticks: { stepSize: 1 }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
